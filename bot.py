@@ -9,7 +9,7 @@ TOKEN = "8906457060:AAEKjnkzaMvnoIj8KubjPtKBYtAs1B80uKQ"
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name
     await update.message.reply_text(
-        f"Hii {name}! ✨ Main Priya hu.\n"
+        f"Hii {name}! ✨ Main Kitty hu.\n"
         "Commands:\n"
         "/joke - Mazedaar joke ke liye\n"
         "/quiz - Sawal khelne ke liye"
@@ -38,47 +38,72 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_user:
         return
 
-    # Agar message bhejne wala koi bot hai, toh ignore karein
+    # Koi bhi bot message bheje toh ignore
     if update.effective_user.is_bot:
         return
 
     sender_name = update.effective_user.first_name
     msg_text = update.message.text.lower() if update.message.text else ""
+    bot_id = context.bot.id
 
-    # Agar kisi ne message par swipe / reply kiya hai
+    # 1. Jab kisi ne BOT ke message par reply kiya ho (e.g. "shut up", "bolo", "sorry")
+    if update.message.reply_to_message and update.message.reply_to_message.from_user.id == bot_id:
+        if any(w in msg_text for w in ["shut up", "chup", "shutup", "bhag"]):
+            responses = [
+                f"Arey gussa kyu ho rahe ho {sender_name}? Theek hai main chup ho jati hu 🥺",
+                f"Haww {sender_name}! Itna gussa accha nahi hota 🙈",
+                f"Sorry na {sender_name}! Ab tang nahi karungi pakka 🤐"
+            ]
+        elif any(w in msg_text for w in ["bolo", "kya", "sunao", "ha bolo"]):
+            responses = [
+                f"Bas main toh yahi keh rahi thi ki group me masti chal rahi hai! 😄",
+                f"Hehe kuch nahi {sender_name}, bas sabki baatein padh rahi thi ✨",
+                f"Bolo {sender_name}, main hamesha sunne ke liye taiyaar hu! 😉"
+            ]
+        elif any(w in msg_text for w in ["sorry", "maaf"]):
+            responses = [
+                f"Koi baat nahi {sender_name}, maine maaf kiya! ❤️",
+                f"It's okay dost, itni pyari dosti me sorry nahi bolte! ✨"
+            ]
+        else:
+            responses = [
+                f"Mujhse keh rahe ho kya {sender_name}? Main toh bas aap sabse dosti kar rahi thi ✨",
+                f"Hehe {sender_name}, aapki har baat sweet lagti hai! 🌸",
+                f"Acha ji {sender_name}? Sach me? 😄"
+            ]
+        await update.message.reply_text(random.choice(responses))
+        return
+
+    # 2. Jab do alag REAL members aapas me swipe/reply karein
     if update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
         
-        # Agar reply kisi bot ko kiya gaya hai, toh bot chup rahega (loop spam nahi hoga)
-        if replied_user and not replied_user.is_bot:
+        # Kisi bot ka reply na ho aur khud ke message ka na ho
+        if replied_user and not replied_user.is_bot and replied_user.id != update.effective_user.id:
             replied_name = replied_user.first_name
-            # Khud ke message par khud reply na kare
-            if replied_user.id != update.effective_user.id:
+            
+            # Spam rokhne ke liye sirf 35% baar hi react karega
+            if random.random() < 0.35:
                 replies_swipe = [
                     f"Arey {replied_name}, suno na! {sender_name} aapse kuch keh rahe hain 😉",
-                    f"Dekho {replied_name}, {sender_name} ne aapke message par reply kiya hai ✨",
+                    f"Dekho {replied_name}, {sender_name} ne aapko reply kiya hai ✨",
                     f"Oho {replied_name}! {sender_name} ki baat suno pehle! 😜"
                 ]
                 await update.message.reply_text(random.choice(replies_swipe))
-                return
+            return
 
-    # Normal Chat Trigger (Jab specifically Priya ya bot se baat karein)
-    bot_names = ["priya", "kitty", "bot"]
-    is_calling_bot = any(name in msg_text for name in bot_names)
-
-    if any(w in msg_text for w in ["kaisi ho", "kya haal", "kaise ho"]):
-        await update.message.reply_text(f"Main bilkul mast hu {sender_name}! Aap batao aapka din kaisa raha? ✨")
-    elif any(w in msg_text for w in ["kya kar rahi ho", "kya chal raha"]):
-        await update.message.reply_text(f"Bas group me sabki baatein sun rahi hu {sender_name}! Aap sunao?")
-    elif any(w in msg_text for w in ["bye", "alvida", "gn", "good night"]):
-        await update.message.reply_text(f"Itni jaldi ja rahe ho {sender_name}? Theek hai, take care! ❤️")
-    elif is_calling_bot:
-        random_replies = [
-            f"Haan ji {sender_name}, bolo main sun rahi hu! 😊",
-            f"Arey {sender_name}, mujhe bulaya kya? ✨",
-            f"Bolo {sender_name}, main yahin hu!"
-        ]
-        await update.message.reply_text(random.choice(random_replies))
+    # 3. Direct bulane par (Jab koi kitty ya priya likhe)
+    bot_names = ["kitty", "priya"]
+    if any(name in msg_text for name in bot_names):
+        if any(w in msg_text for w in ["kaisi ho", "kya haal", "kaise ho"]):
+            await update.message.reply_text(f"Main bilkul theek hu {sender_name}! Aap batao? ✨")
+        else:
+            replies = [
+                f"Haan ji {sender_name}, bolo main sun rahi hu! 😊",
+                f"Arey {sender_name}, mujhe bulaya kya? ✨",
+                f"Bolo {sender_name}, main yahin hu!"
+            ]
+            await update.message.reply_text(random.choice(replies))
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -90,4 +115,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                    
