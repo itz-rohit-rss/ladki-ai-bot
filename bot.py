@@ -1,13 +1,26 @@
 import os
 import random
+import threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = "8906457060:AAEKjnkzaMvnoIj8KubjPtKBYtAs1B80uKQ"
 
+# Render ke liye dummy web server taaki Port scan pass ho jaye
+server = Flask(__name__)
+
+@server.route('/')
+def home():
+    return "Bot is running 24/7!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 8080))
+    server.run(host="0.0.0.0", port=port)
+
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    name = update.effective_user.first_name
+    name = update.effective_user.first_name if update.effective_user else "Dost"
     await update.message.reply_text(
         f"Hii {name}! ✨ Main Kitty hu.\n"
         "Commands:\n"
@@ -42,12 +55,15 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.is_bot:
         return
 
-    sender_name = update.effective_user.first_name
-    msg_text = update.message.text.lower() if update.message.text else ""
+    sender_name = update.effective_user.first_name or "Dost"
+    
+    # Text safe handle (photo/sticker hone par crash na ho)
+    raw_text = update.message.text or update.message.caption or ""
+    msg_text = raw_text.lower()
     bot_id = context.bot.id
 
-    # 1. Jab kisi ne BOT ke message par reply kiya ho (e.g. "shut up", "bolo", "sorry")
-    if update.message.reply_to_message and update.message.reply_to_message.from_user.id == bot_id:
+    # 1. Jab kisi ne BOT ke message par reply kiya ho
+    if update.message.reply_to_message and update.message.reply_to_message.from_user and update.message.reply_to_message.from_user.id == bot_id:
         if any(w in msg_text for w in ["shut up", "chup", "shutup", "bhag"]):
             responses = [
                 f"Arey gussa kyu ho rahe ho {sender_name}? Theek hai main chup ho jati hu 🥺",
@@ -74,15 +90,11 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(random.choice(responses))
         return
 
-    # 2. Jab do alag REAL members aapas me swipe/reply karein
+    # 2. Jab do REAL members aapas me swipe/reply karein
     if update.message.reply_to_message:
         replied_user = update.message.reply_to_message.from_user
-        
-        # Kisi bot ka reply na ho aur khud ke message ka na ho
         if replied_user and not replied_user.is_bot and replied_user.id != update.effective_user.id:
-            replied_name = replied_user.first_name
-            
-            # Spam rokhne ke liye sirf 35% baar hi react karega
+            replied_name = replied_user.first_name or "Dost"
             if random.random() < 0.35:
                 replies_swipe = [
                     f"Arey {replied_name}, suno na! {sender_name} aapse kuch keh rahe hain 😉",
@@ -92,7 +104,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(random.choice(replies_swipe))
             return
 
-    # 3. Direct bulane par (Jab koi kitty ya priya likhe)
+    # 3. Direct bulane par
     bot_names = ["kitty", "priya"]
     if any(name in msg_text for name in bot_names):
         if any(w in msg_text for w in ["kaisi ho", "kya haal", "kaise ho"]):
@@ -106,13 +118,17 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(random.choice(replies))
 
 def main():
+    # Flask web server background thread me start karein (Render port check ke liye)
+    threading.Thread(target=run_web, daemon=True).start()
+
+    # Telegram bot start karein
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("joke", joke))
     app.add_handler(CommandHandler("quiz", quiz))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat_handler))
+    app.add_handler(MessageHandler(filters.ALL & (~filters.COMMAND), chat_handler))
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-                    
+    
